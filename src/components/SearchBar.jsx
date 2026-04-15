@@ -87,6 +87,7 @@ const SearchBar = ({
             {["default", "woman", "elderly", "tourist"].map(t => (
               <button 
                 key={t} 
+                aria-label={`Set profile mode to ${t}`}
                 aria-pressed={userType === t}
                 onClick={() => setUserType(t)} 
                 disabled={disabled} 
@@ -109,6 +110,7 @@ const SearchBar = ({
             {["day", "evening", "night"].map((period) => (
               <button
                 key={period}
+                aria-label={`Set time period to ${period}`}
                 aria-pressed={timePeriod === period}
                 onClick={() => setTimePeriod(period)}
                 disabled={disabled}

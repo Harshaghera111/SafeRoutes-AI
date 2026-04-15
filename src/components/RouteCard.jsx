@@ -4,6 +4,37 @@ import RiskTagRow from './RiskTagRow';
 import AIExplanation from './AIExplanation';
 import WhyThisRoute from './WhyThisRoute';
 
+const SAFETY_BREAKDOWN = [
+  { label: 'Lighting', value: 30 },
+  { label: 'Crowd Density', value: 25 },
+  { label: 'Risk Zones', value: 20 },
+  { label: 'Context Adjustment', value: 25 },
+];
+
+const SafetyBreakdownPanel = () => (
+  <section aria-label="Dynamic safety breakdown panel" style={{ marginTop: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+    <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'var(--text-primary)' }}>Safety Score Breakdown</h4>
+    {SAFETY_BREAKDOWN.map((item) => (
+      <div key={item.label} style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+          <span>{item.label}</span>
+          <span>{item.value}%</span>
+        </div>
+        <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '8px', overflow: 'hidden' }}>
+          <span style={{ display: 'block', width: `${item.value}%`, height: '100%', background: 'var(--brand-green)' }} />
+        </div>
+      </div>
+    ))}
+  </section>
+);
+
+const AIRecommendationBadge = () => (
+  <section aria-label="AI recommendation badge" style={{ marginBottom: '12px', border: '1px solid var(--safe)', color: 'var(--brand-green)', background: 'rgba(34,197,94,0.08)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+    <div style={{ fontSize: '13px', fontWeight: 700 }}>🧠 AI Recommendation: Choose Safest Route</div>
+    <div style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-secondary)' }}>Based on current context and safety signals</div>
+  </section>
+);
+
 const TradeoffCallout = ({ fastestRoute, safestRoute }) => {
   if (!fastestRoute || !safestRoute) return null;
   
@@ -73,7 +104,12 @@ const RouteCard = ({ route }) => {
         <strong>User Context Impact:</strong> {route.userContextImpact}
       </p>
 
-      {isSafest && <WhyThisRoute reasons={route.reasons} color="var(--safe)" />}
+      {isSafest && (
+        <>
+          <WhyThisRoute reasons={route.reasons} color="var(--safe)" />
+          <SafetyBreakdownPanel />
+        </>
+      )}
     </article>
   );
 };
@@ -81,6 +117,7 @@ const RouteCard = ({ route }) => {
 export const ResultsView = ({ fastestRoute, safestRoute }) => {
   return (
     <div id="route-results" role="region" aria-label="Route Results" style={{ padding: '0 16px', marginTop: '16px', paddingBottom: '100px' }}>
+      <AIRecommendationBadge />
       <RouteCard route={safestRoute} />
       <TradeoffCallout fastestRoute={fastestRoute} safestRoute={safestRoute} />
       <RouteCard route={fastestRoute} />

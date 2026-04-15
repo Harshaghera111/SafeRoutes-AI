@@ -1,0 +1,39 @@
+:root {
+  /* Brand */
+  --brand-green:    #22c55e;
+  --brand-green-dim:#16a34a;
+  --brand-red:      #ef4444;
+  --brand-amber:    #f59e0b;
+
+  /* Safety tiers */
+  --safe:           #22c55e;
+  --caution:        #f59e0b;
+  --avoid:          #ef4444;
+
+  /* Surfaces */
+  --bg-base:        #0f172a;   /* deep navy — entire app background */
+  --bg-card:        #1e293b;   /* card surfaces */
+  --bg-card-hover:  #263349;
+  --bg-input:       #162032;
+  --border:         #334155;
+  --border-subtle:  #1e293b;
+
+  /* Text */
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+
+  /* Spacing */
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+  --radius-pill:99px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow-green: 0 0 20px rgba(34,197,94,0.25);
+  --shadow-glow-red:   0 0 20px rgba(239,68,68,0.25);
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--bg-base); color: var(--text-primary); margin: 0; }
+h1, h2, .score-number { font-family: 'Syne', sans-serif; }

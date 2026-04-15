@@ -1,63 +1,98 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import SafetyScore from './SafetyScore';
 import RiskTagRow from './RiskTagRow';
 import AIExplanation from './AIExplanation';
+import WhyThisRoute from './WhyThisRoute';
 
-const getTradeoffText = (fastest, safest) => {
-  const diffMinutes = Math.max(0, Math.ceil((safest.durationSeconds - fastest.durationSeconds) / 60));
-  if (diffMinutes <= 0) return 'Same ETA · Take the safer route ✓';
-  if (diffMinutes <= 5) return `+${diffMinutes} min · A small price for safety ✓`;
-  if (diffMinutes <= 15) return `+${diffMinutes} min · Significantly safer · Recommended ✓`;
-  return `+${diffMinutes} min · Much safer · Your call`;
-};
-
-const ComparisonCard = ({ route, label, icon, recommended = false, merged = false }) => (
-  <div className={`route-card status-${route.status} ${recommended ? 'recommended-card' : ''}`}>
-    <div className="route-header">
-      <div>
-        <div className="route-title">
-          <span>{icon}</span>
-          <span>{label}</span>
-          {recommended && <span className="recommended-pill">Recommended</span>}
-          {merged && <span className="merged-pill">Fastest + Safest</span>}
-        </div>
-        <div className="route-stats">
-          <span>{route.durationText}</span>
-          <span>•</span>
-          <span>{route.distanceText}</span>
-          <span>•</span>
-          <span>AI confidence {route.confidence}%</span>
-        </div>
-        <RiskTagRow tags={route.riskTags} tier={route.tier} />
-      </div>
-      <SafetyScore score={route.score} />
-    </div>
-
-    <AIExplanation text={route.explanation} />
-  </div>
-);
-
-const RouteCard = ({ scoredRoutes, safestRouteIndex, fastestRouteIndex, sameRoute }) => {
-  if (!scoredRoutes?.length) return null;
-
-  const safest = scoredRoutes.find((route) => route.routeIndex === safestRouteIndex);
-  const fastest = scoredRoutes.find((route) => route.routeIndex === fastestRouteIndex);
-
-  if (!safest) return null;
-
-  if (sameRoute || !fastest) {
-    return (
-      <div className="route-list">
-        <ComparisonCard route={safest} label="This route is both fastest AND safest ✓" icon="🛡️" merged />
-      </div>
-    );
-  }
+const TradeoffCallout = ({ fastestRoute, safestRoute }) => {
+  if (!fastestRoute || !safestRoute) return null;
+  const timeDiff = Math.max(0, Math.round((safestRoute.duration - fastestRoute.duration) / 60));
+  
+  let label = "";
+  if (timeDiff <= 0) label = "⚡ Same ETA · Take the safer route ✓";
+  else if (timeDiff <= 5) label = `+${timeDiff} min · Small price for safety ✓`;
+  else if (timeDiff <= 15) label = `+${timeDiff} min · Significantly safer · Recommended ✓`;
+  else label = `+${timeDiff} min · Much safer · Your call`;
 
   return (
-    <div className="route-list">
-      <ComparisonCard route={safest} label="Safest Route" icon="🛡️" recommended />
-      <div className="tradeoff-callout">{getTradeoffText(fastest, safest)}</div>
-      <ComparisonCard route={fastest} label="Fastest Route" icon="⚡" />
+    <div style={{
+      border: '1px solid var(--safe)', color: 'var(--brand-green)', background: 'rgba(34,197,94,0.08)',
+      padding: '8px 16px', borderRadius: 'var(--radius-pill)', fontSize: '13px', fontWeight: 600,
+      textAlign: 'center', margin: '0 auto 12px auto', width: 'fit-content'
+    }}>
+      {label}
+    </div>
+  );
+};
+
+const RouteCard = ({ route, type, delay }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+
+  const isSafest = type === 'safest' || type === 'merged';
+  const showBadge = isSafest;
+
+  const style = {
+    background: 'var(--bg-card)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px',
+    marginBottom: '16px',
+    borderLeft: `4px solid ${isSafest ? 'var(--safe)' : 'var(--border)'}`,
+    boxShadow: isSafest ? 'var(--shadow-glow-green)' : 'var(--shadow-card)',
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+    position: 'relative'
+  };
+
+  const headerTitle = type === 'merged' ? "⚡🛡️ Fastest & Safest Route" : (isSafest ? "🛡️ Safest Route" : "⚡ Fastest Route");
+
+  return (
+    <div style={style}>
+      {showBadge && (
+        <span style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(34,197,94,0.1)', color: 'var(--brand-green)', padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: '11px', fontWeight: 700 }}>
+          {type === 'merged' ? "Best of Both ✓" : "Recommended ✓"}
+        </span>
+      )}
+
+      <div style={{ marginBottom: '12px' }}>
+        <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', color: 'var(--text-primary)' }}>{headerTitle}</h3>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+          <span style={{fontWeight: 600, color: '#fff'}}>{route.durationText}</span>
+          <span>•</span>
+          <span>{route.distanceText}</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
+         <RiskTagRow tags={route.riskTags} tier={route.tier} />
+         <SafetyScore score={route.score} />
+      </div>
+
+      <AIExplanation route={route} routeType={type === 'fastest' ? 'faster' : 'safest'} />
+      
+      {isSafest && <WhyThisRoute reasons={route.reasons} color="var(--safe)" />}
+    </div>
+  );
+};
+
+export const ResultsView = ({ fastestRoute, safestRoute }) => {
+  const isMerged = fastestRoute.id === safestRoute.id;
+
+  return (
+    <div id="route-results" style={{ padding: '0 16px', marginTop: '16px', paddingBottom: '100px' }}>
+      {isMerged ? (
+        <RouteCard route={safestRoute} type="merged" delay={0} />
+      ) : (
+        <>
+          <RouteCard route={safestRoute} type="safest" delay={0} />
+          <TradeoffCallout fastestRoute={fastestRoute} safestRoute={safestRoute} />
+          <RouteCard route={fastestRoute} type="fastest" delay={150} />
+        </>
+      )}
     </div>
   );
 };

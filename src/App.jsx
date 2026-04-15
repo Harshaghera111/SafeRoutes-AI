@@ -1,149 +1,143 @@
-import React, { useMemo, useState } from 'react';
-import { LoadScript } from '@react-google-maps/api';
-import { ShieldCheck, Navigation2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useJsApiLoader } from '@react-google-maps/api';
+import SearchBar from './components/SearchBar';
 import MapView from './components/MapView';
-import EmergencyButton from './components/EmergencyButton';
-import RouteCard from './components/RouteCard';
-import ContextBanner from './components/ContextBanner';
+import { ResultsView } from './components/RouteCard';
 import SkeletonCard from './components/SkeletonCard';
-import useDirections from './hooks/useDirections';
-import useSafetyScore from './hooks/useSafetyScore';
+import EmergencyButton from './components/EmergencyButton';
+import { useDirections } from './hooks/useDirections';
 
-const DEFAULT_ORIGIN = 'Kempegowda Bus Station, Bengaluru';
-const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+const LIBRARIES = ["places"];
 
-function App() {
-  const [origin, setOrigin] = useState(DEFAULT_ORIGIN);
-  const [destinationInput, setDestinationInput] = useState('');
-  const [destination, setDestination] = useState('');
-  const [userType, setUserType] = useState('default');
+const autoDetectTimePeriod = () => {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 18) return "day";
+  if (hour >= 18 && hour < 21) return "evening";
+  return "night";
+};
 
-  const { routes, loading, error, errorMessage, toastMessage, warning, refetch } = useDirections(
-    origin,
-    destination
-  );
-  const keyMissing = !MAPS_KEY || MAPS_KEY === 'your_google_maps_api_key_here';
-  const { scoredRoutes, safestRouteIndex, fastestRouteIndex, sameRoute } = useSafetyScore(routes, userType);
+const App = () => {
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [userType, setUserType] = useState("default");
+  const [timePeriod, setTimePeriod] = useState(autoDetectTimePeriod());
+  const [appStage, setAppStage] = useState("idle");
 
-  const compareEnabled = routes.length > 1;
-  const canFetch = useMemo(() => destination.trim().length > 0, [destination]);
+  const [routes, setRoutes] = useState(null);
+  const { fetchDirections, error, isOffline, quotaWarning } = useDirections();
 
-  const onSubmit = (event) => {
-    event.preventDefault();
-    setDestination(destinationInput.trim());
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY,
+    libraries: LIBRARIES
+  });
+
+  const handleSearch = async () => {
+    if (!origin || !destination) return;
+    setAppStage('loading');
+    setRoutes(null);
+
+    const res = await fetchDirections(origin, destination, userType, timePeriod);
+    
+    if (res) {
+      setRoutes(res);
+      setAppStage('results');
+      setTimeout(() => {
+        document.getElementById("route-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if ("vibrate" in navigator) navigator.vibrate(50);
+      }, 100);
+    } else {
+      setAppStage('error');
+    }
   };
 
+  const appContainerStyle = {
+    maxWidth: '430px', margin: '0 auto', background: 'var(--bg-base)', minHeight: '100vh', 
+    boxShadow: '0 0 40px rgba(0,0,0,0.5)', position: 'relative', overflowX: 'hidden'
+  };
+
+  const headerStyle = {
+    height: '56px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px',
+    color: 'var(--text-primary)', position: 'sticky', top: 0, zIndex: 100
+  };
+
+  if (loadError) return <div style={{padding: '24px', color: 'var(--brand-red)'}}>Error loading Google Maps. Is your key valid?</div>;
+  if (!import.meta.env.VITE_GOOGLE_MAPS_KEY) return <div style={{padding: '24px', color: 'var(--brand-red)'}}>Missing VITE_GOOGLE_MAPS_KEY in .env file.</div>;
+
   return (
-    <LoadScript googleMapsApiKey={MAPS_KEY || ''} libraries={['geometry']}>
-      <div className="app-container">
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            padding: '24px 20px',
-            zIndex: 1100,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'linear-gradient(to bottom, rgba(10,10,10,0.9) 0%, transparent 100%)',
-          }}
-        >
-          <ShieldCheck color="#10b981" size={28} />
-          <span style={{ fontWeight: '700', fontSize: '1.4rem', letterSpacing: '0.5px' }}>
-            SafeRoute <span style={{ color: '#10b981' }}>AI</span>
-          </span>
-        </div>
+    <div style={appContainerStyle}>
+      {/* Network / Error / Quota Banners */}
+      {isOffline && <div style={{ background: 'var(--brand-red)', color: 'white', padding: '8px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}>⚠ No internet connection. SafeRoute AI needs connectivity.</div>}
+      {appStage === 'error' && error && <div style={{ background: 'var(--brand-red)', color: 'white', padding: '8px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}>{error}</div>}
+      {quotaWarning && <div style={{ background: 'var(--brand-amber)', color: '#000', padding: '8px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}>{quotaWarning}</div>}
 
-        <div className="map-container">
-          {keyMissing && (
-            <div className="error-banner api-key-banner">
-              <span>
-                Missing <code>VITE_GOOGLE_MAPS_KEY</code>. Copy <code>.env.example</code> to{' '}
-                <code>.env</code> and add your browser key (Maps JavaScript API + Directions API enabled).
-              </span>
-            </div>
-          )}
-          {!keyMissing && error && (
-            <div className="error-banner">
-              <span>⚠ {errorMessage || toastMessage}</span>
-              <button type="button" onClick={refetch}>
-                Retry
-              </button>
-            </div>
-          )}
-          {warning && <div className="warning-banner">{warning}</div>}
-          {!error && toastMessage && <div className="warning-banner">{toastMessage}</div>}
-          <MapView
-            scoredRoutes={scoredRoutes}
-            safestRouteIndex={safestRouteIndex}
-            fastestRouteIndex={fastestRouteIndex}
-            loading={loading && canFetch}
+      {/* Header */}
+      <header style={headerStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>🛡️</span>
+          <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '18px' }}>SafeRoute AI</span>
+          {destination.toLowerCase() === "demo" && <span style={{ background: 'var(--brand-amber)', color: '#000', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>DEMO</span>}
+        </div>
+        <span style={{ fontSize: '20px', color: 'var(--text-secondary)' }}>⚙️</span>
+      </header>
+      
+      {/* Main Layout body */}
+      {isLoaded ? (
+        <>
+          <SearchBar 
+             origin={origin} setOrigin={setOrigin} 
+             destination={destination} setDestination={setDestination}
+             userType={userType} setUserType={setUserType}
+             timePeriod={timePeriod} setTimePeriod={setTimePeriod}
+             handleSearch={handleSearch} disabled={appStage === 'loading'}
+             appStage={appStage}
           />
-        </div>
 
-        <div className="bottom-sheet glass-panel">
-          <div className="sheet-handle"></div>
-          <form onSubmit={onSubmit} className="search-form">
-            <div className="input-group">
-              <label className="input-label">Starting Point</label>
-              <input
-                type="text"
-                className="styled-input"
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                placeholder="Enter origin"
-                required
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Destination</label>
-              <input
-                type="text"
-                className="styled-input"
-                value={destinationInput}
-                onChange={(e) => setDestinationInput(e.target.value)}
-                placeholder="e.g. Dayananda Sagar University, Bengaluru"
-                required
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">AI Context Profile</label>
-              <select className="styled-select" value={userType} onChange={(e) => setUserType(e.target.value)}>
-                <option value="default">General / Default</option>
-                <option value="woman">Solo Traveler (Woman)</option>
-                <option value="elderly">Elderly / Limited Mobility</option>
-                <option value="tourist">Tourist / Unfamiliar</option>
-              </select>
-            </div>
-            <button type="submit" className="primary-btn">
-              <Navigation2 size={20} />
-              Find Safest Route
-            </button>
-          </form>
+          <MapView 
+            fastestRoute={routes?.fastestRoute} 
+            safestRoute={routes?.safestRoute} 
+            originStr={origin} destStr={destination} 
+            appStage={appStage} 
+          />
 
-          {destination && <ContextBanner userType={userType} />}
-
-          {loading && canFetch ? (
-            <div className="route-list">
-              <SkeletonCard />
-              <SkeletonCard />
+          {appStage === 'loading' && (
+            <div style={{ padding: '24px 16px' }}>
+               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                 <h2 style={{ fontSize: '18px', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>🛡️ Analyzing route safety...</h2>
+                 <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Checking lighting, crowd data, and risk zones</div>
+               </div>
+               <SkeletonCard />
+               <SkeletonCard />
             </div>
-          ) : (
-            <RouteCard
-              scoredRoutes={scoredRoutes}
-              safestRouteIndex={safestRouteIndex}
-              fastestRouteIndex={fastestRouteIndex}
-              sameRoute={sameRoute || !compareEnabled}
-            />
           )}
-        </div>
 
-        <EmergencyButton />
+          {appStage === 'results' && routes && (
+            <ResultsView fastestRoute={routes.fastestRoute} safestRoute={routes.safestRoute} />
+          )}
+
+          {appStage === 'idle' && (
+             <div style={{ textAlign: 'center', padding: '48px 24px', opacity: 0.8, animation: 'fadeIn 0.5s ease-out' }}>
+               <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛡️</div>
+               <h2 style={{ fontSize: '20px', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>Where are you headed?</h2>
+               <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.5, margin: 0 }}>
+                 SafeRoute AI finds you the safest path, not just the fastest.
+               </p>
+               <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 0.8; transform: translateY(0) } }`}</style>
+             </div>
+          )}
+        </>
+      ) : (
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading Maps SDK...</div>
+      )}
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', padding: '24px 0' }}>
+         Built for safety. Powered by Gemini AI.
       </div>
-    </LoadScript>
+      
+      <EmergencyButton />
+    </div>
   );
-}
+};
 
 export default App;

@@ -1,103 +1,79 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { GoogleMap, Polyline, Marker } from '@react-google-maps/api';
-import { DARK_MAP_STYLE } from '../config/mapStyle';
+import React, { memo } from 'react';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-const MapView = ({ fastestRoute, safestRoute, originStr, destStr, appStage }) => {
-  const mapRef = useRef(null);
+// Fix leaflet default icon rendering issue gracefully
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
 
-  const containerStyle = { width: '100%', height: '380px', position: 'relative' };
-  const center = { lat: 12.9716, lng: 77.5946 }; // Bengaluru default
+const SafeMarker = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div style="background-color: var(--safe); width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(34,197,94,0.8);"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
 
-  const onMapLoad = useCallback((map) => {
-    mapRef.current = map;
-  }, []);
+const BaseMarker = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div style="background-color: #3b82f6; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(59,130,246,0.8);"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
 
-  useEffect(() => {
-    if (mapRef.current && (fastestRoute || safestRoute) && appStage === 'results') {
-      const bounds = new window.google.maps.LatLngBounds();
-      
-      const extendBounds = (route) => {
-         if (route && route.coords) {
-           route.coords.forEach(pt => bounds.extend({ lat: pt.lat(), lng: pt.lng() }));
-         }
-      };
-
-      if (fastestRoute) extendBounds(fastestRoute);
-      if (safestRoute) extendBounds(safestRoute);
-
-      if (!bounds.isEmpty()) {
-        mapRef.current.fitBounds(bounds, { padding: 48 });
-      }
-    }
-  }, [fastestRoute, safestRoute, appStage]);
-
-  return (
-    <div style={containerStyle}>
-      {appStage === 'loading' && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex',
-          flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div className="spinner" style={{ marginBottom: '16px' }} />
-          <div style={{ color: 'var(--brand-green)', fontWeight: 600, fontSize: '14px' }}>Finding your safest route...</div>
-          <style>{`
-            .spinner { width: 40px; height: 40px; border: 4px solid rgba(34,197,94,0.2); border-left-color: var(--brand-green); border-radius: 50%; animation: spin 1s linear infinite; }
-            @keyframes spin { to { transform: rotate(360deg); } }
-          `}</style>
-        </div>
-      )}
-
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={center}
-        zoom={14}
-        onLoad={onMapLoad}
-        options={{
-          disableDefaultUI: true,
-          zoomControl: false,
-          gestureHandling: "cooperative",
-          styles: DARK_MAP_STYLE
-        }}
-      >
-        {fastestRoute && fastestRoute.coords && (
-          <Polyline
-            path={fastestRoute.coords}
-            options={{ strokeColor: "#94a3b8", strokeWeight: 3, strokeOpacity: 0.55, zIndex: 5 }}
-          />
-        )}
-        
-        {safestRoute && safestRoute.coords && (
-          <Polyline
-            path={safestRoute.coords}
-            options={{
-              strokeColor: "#22c55e",
-              strokeWeight: 5,
-              strokeOpacity: 1.0,
-              zIndex: 10,
-              icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 }, offset: "0", repeat: "20px" }]
-            }}
-          />
-        )}
-
-        {safestRoute && safestRoute.coords && safelyGetMarkers(safestRoute.coords)}
-      </GoogleMap>
-    </div>
-  );
-};
-
-// Helper to pull start and end markers safely
-const safelyGetMarkers = (coords) => {
-  if (!coords || coords.length === 0) return null;
-  const start = coords[0];
-  const end = coords[coords.length - 1];
+/**
+ * MapView Component
+ * Renders the localized Leaflet map instances ensuring UI responsiveness and zero paid-API dependencies.
+ * Wrapped in React.memo to prevent expensive re-renders in the heavy DOM tree.
+ */
+const MapView = memo(({ safestRoute, fastestRoute }) => {
+  const center = [12.9533, 77.6095]; // Midpoint Bengaluru
   
-  return (
-    <>
-      <Marker position={{ lat: start.lat(), lng: start.lng() }} icon={{ path: window.google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }} />
-      <Marker position={{ lat: end.lat(), lng: end.lng() }} icon={{ path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }} />
-    </>
-  );
-}
+  const hasSafeRoute = Boolean(safestRoute?.coords?.length);
 
+  return (
+    <section style={{ height: '380px', width: '100%', zIndex: 1 }} aria-label="Interactive map displaying route options">
+      <MapContainer 
+        center={center} 
+        zoom={13} 
+        style={{ height: '100%', width: '100%', backgroundColor: 'var(--bg-base)' }}
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        />
+
+        {fastestRoute && (
+          <Polyline 
+            positions={fastestRoute.coords} 
+            pathOptions={{ color: '#94a3b8', weight: 4, opacity: 0.6, dashArray: '8, 8' }} 
+          />
+        )}
+
+        {hasSafeRoute && (
+          <>
+            <Polyline 
+              positions={safestRoute.coords} 
+              pathOptions={{ color: 'var(--safe)', weight: 6, opacity: 1 }} 
+            />
+            {/* Start and End Markers */}
+            <Marker position={safestRoute.coords[0]} icon={BaseMarker}>
+               <Popup>Start Location</Popup>
+            </Marker>
+            <Marker position={safestRoute.coords[safestRoute.coords.length - 1]} icon={SafeMarker}>
+               <Popup>Secure Destination</Popup>
+            </Marker>
+          </>
+        )}
+      </MapContainer>
+    </section>
+  );
+});
+
+MapView.displayName = 'MapView';
 export default MapView;

@@ -40,15 +40,15 @@ const WhyThisRoute = ({ reasons, color }) => {
   });
 
   return (
-    <div style={containerStyle}>
-      <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '12px', opacity: 0.7 }}>ROUTE HIGHLIGHTS</div>
+    <section aria-label="Why this route" style={containerStyle}>
+      <h4 style={{ fontWeight: 700, margin: '0 0 8px 0', fontSize: '13px', opacity: 0.9 }}>Why this route?</h4>
       {reasons.slice(0, 3).map((reason, i) => (
         <div key={i} style={itemStyle(i)}>
           {getSentimentIcon(reason)}
           {reason}
         </div>
       ))}
-    </div>
+    </section>
   );
 };
 

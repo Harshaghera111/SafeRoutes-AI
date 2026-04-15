@@ -1,81 +1,34 @@
 import React from 'react';
 
+/**
+ * Accessibly renders the quantitative safety score UI element.
+ */
 const SafetyScore = ({ score }) => {
-  let tierLabel = '';
-  let colorVar = '';
-  
-  if (score >= 90) {
-    tierLabel = 'Very Safe';
-    colorVar = '#22c55e'; // --safe
-  } else if (score >= 75) {
-    tierLabel = 'Safe';
-    colorVar = '#22c55e'; // --safe
-  } else if (score >= 50) {
-    tierLabel = 'Moderate Risk';
-    colorVar = '#f59e0b'; // --caution
-  } else if (score >= 25) {
-    tierLabel = 'High Risk';
-    colorVar = '#ef4444'; // --avoid
-  } else {
-    tierLabel = 'Unsafe';
-    colorVar = '#ef4444'; // --avoid
+  let tier = 'AVOID';
+  let color = 'var(--avoid)';
+  let desc = 'Avoid / Unsafe';
+
+  if (score >= 75) {
+    tier = 'SAFE';
+    color = 'var(--safe)';
+    desc = 'Very Safe';
+  } else if (score >= 45) {
+    tier = 'CAUTION';
+    color = 'var(--caution)';
+    desc = 'Moderate Risk';
   }
 
-  const filledDots = Math.round(score / 20);
-  
-  const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '4px'
-  };
-
-  const topRowStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '12px',
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: 500
-  };
-
-  const badgeStyle = {
-    backgroundColor: colorVar,
-    width: '12px',
-    height: '12px',
-    borderRadius: '4px',
-    display: 'inline-block'
-  };
-
-  const bottomRowStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  };
-
-  const labelStyle = {
-    color: colorVar,
-    fontWeight: 700,
-    fontSize: '14px'
-  };
-
-  const dotsStyle = {
-    color: colorVar,
-    fontSize: '14px',
-    letterSpacing: '2px'
-  };
-
-  const dots = Array.from({ length: 5 }).map((_, i) => (i < filledDots ? '●' : '○')).join('');
-
   return (
-    <div style={containerStyle}>
-      <div style={topRowStyle}>
-        <span style={badgeStyle}></span>
-        Safety Score: <span style={{color: '#fff', fontWeight: 700}}>{score}/100</span>
+    <div aria-label={`Safety Score: ${score} out of 100, marked as ${desc}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>SAFETY SCORE</span>
+        <span style={{ background: color, color: '#000', fontSize: '10px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px' }}>
+          {tier}
+        </span>
       </div>
-      <div style={bottomRowStyle}>
-        <span style={labelStyle}>{tierLabel}</span>
-        <span style={dotsStyle}>{dots}</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+        <span style={{ fontSize: '28px', fontWeight: 800, color: color, fontFamily: 'Syne, sans-serif' }}>{score}</span>
+        <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/100</span>
       </div>
     </div>
   );

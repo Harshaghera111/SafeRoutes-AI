@@ -57,9 +57,9 @@ const RiskTagRow = ({ tags, tier }) => {
   };
 
   return (
-    <div style={containerStyle}>
+    <div aria-label="Route risk indicators" style={containerStyle}>
       {displayTags.map((tag, i) => (
-        <span key={i} style={tagStyle}>
+        <span key={i} style={tagStyle} aria-label={`Risk tag: ${tag}`}>
           <span>{getIcon(tag)}</span> {tag}
         </span>
       ))}

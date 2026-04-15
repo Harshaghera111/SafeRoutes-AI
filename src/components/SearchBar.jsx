@@ -1,60 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Autocomplete } from '@react-google-maps/api';
+import React from 'react';
 
 const SearchBar = ({ 
   origin, setOrigin, 
   destination, setDestination, 
   userType, setUserType, 
   timePeriod, setTimePeriod, 
-  handleSearch, disabled, appStage 
+  handleSearch, disabled, appStage, inputError
 }) => {
-  const destRef = useRef(null);
-
-  useEffect(() => {
-    if (navigator.geolocation && !origin) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const geocoder = new window.google.maps.Geocoder();
-          geocoder.geocode({ location: { lat: pos.coords.latitude, lng: pos.coords.longitude } }, (res, status) => {
-            if (status === 'OK' && res[0]) {
-              setOrigin(res[0].formatted_address);
-            } else {
-              setOrigin("Bengaluru, Karnataka");
-            }
-          });
-        },
-        () => setOrigin("Bengaluru, Karnataka")
-      );
-    }
-  }, [origin, setOrigin]);
-
-  const onPlaceChanged = () => {
-    if (destRef.current) {
-      const place = destRef.current.getPlace();
-      if (place && place.formatted_address) {
-        setDestination(place.formatted_address);
-        if (place.formatted_address.toLowerCase().includes("demo")) {
-          // Demo trigger via name
-          triggerDemo();
-        }
-      }
-    }
-  };
-
-  const manuallyCheckDemo = (val) => {
-    setDestination(val);
-    if (val.toLowerCase() === "demo") {
-      triggerDemo();
-    }
-  };
-
-  const triggerDemo = () => {
-    setOrigin("Koramangala 5th Block, Bengaluru");
-    setDestination("Indiranagar 12th Main, Bengaluru");
-    setUserType("woman");
-    setTimePeriod("night");
-    setTimeout(handleSearch, 300);
-  };
 
   const pillStyle = (active) => ({
     padding: '8px 12px',
@@ -66,31 +18,27 @@ const SearchBar = ({
     cursor: 'pointer',
     flex: '1',
     textAlign: 'center',
-    fontWeight: active ? '600' : '400'
+    fontWeight: active ? '600' : '400',
+    transition: 'all 0.2s ease'
   });
 
-  const getContextBanner = () => {
-    switch (userType) {
-      case "woman": return "Prioritizing well-lit, high-activity corridors";
-      case "elderly": return "Avoiding steep and isolated paths";
-      case "tourist": return "Avoiding unfamiliar low-activity areas";
-      default: return "Balanced safety and speed";
-    }
-  };
-
   return (
-    <div style={{ padding: '16px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
+    <section aria-label="Route Search Section" style={{ padding: '16px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
-        {/* Origin */}
+        {/* Origin field with A11y bindings */}
         <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>📍</span>
+          <span aria-hidden="true" style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>📍</span>
           <input 
             type="text" 
+            aria-label="Origin Location"
             value={origin} 
             onChange={(e) => setOrigin(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !disabled) handleSearch();
+            }}
             disabled={disabled}
-            placeholder="Your location..."
+            placeholder="Starting from..."
             style={{ width: '100%', padding: '10px 10px 10px 36px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: '14px', boxSizing: 'border-box' }}
           />
         </div>
@@ -98,48 +46,82 @@ const SearchBar = ({
         {/* Destination & Action */}
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ position: 'relative', flex: 1 }}>
-            <span style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>🎯</span>
-            <Autocomplete onLoad={(ref) => destRef.current = ref} onPlaceChanged={onPlaceChanged} options={{ componentRestrictions: { country: "in" } }}>
-              <input 
-                type="text" 
-                value={destination} 
-                onChange={(e) => manuallyCheckDemo(e.target.value)}
-                disabled={disabled}
-                placeholder="Where to?"
-                style={{ width: '100%', padding: '10px 10px 10px 36px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: '14px', boxSizing: 'border-box' }}
-              />
-            </Autocomplete>
+            <span aria-hidden="true" style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>🎯</span>
+            <input 
+              type="text" 
+              aria-label="Destination Location"
+              value={destination} 
+              onChange={(e) => setDestination(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !disabled) handleSearch();
+              }}
+              disabled={disabled}
+              placeholder="Where to?"
+              style={{ width: '100%', padding: '10px 10px 10px 36px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: '14px', boxSizing: 'border-box' }}
+            />
           </div>
           <button 
+            aria-label="Search Route"
             onClick={handleSearch}
-            disabled={!destination || disabled}
+            disabled={!destination || !origin || disabled}
             style={{ 
               background: 'var(--brand-green)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
               padding: '0 20px', fontWeight: 'bold', fontFamily: 'Syne, sans-serif', fontSize: '16px',
-              opacity: (!destination || disabled) ? 0.5 : 1, cursor: 'pointer'
+              opacity: (!destination || !origin || disabled) ? 0.5 : 1, cursor: 'pointer'
             }}
           >
             Go →
           </button>
         </div>
 
-        {/* User Type */}
+        {inputError && (
+          <p role="alert" style={{ margin: 0, color: '#fca5a5', fontSize: '12px', fontWeight: 600 }}>
+            {inputError}
+          </p>
+        )}
+
+        {/* User Context Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginRight: '4px' }}>👤 I am:</span>
-          {["default", "woman", "elderly", "tourist"].map(t => (
-            <button key={t} onClick={() => setUserType(t)} disabled={disabled} style={pillStyle(userType === t)}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
+          <span id="user-type-group" style={{ fontSize: '13px', color: 'var(--text-secondary)', marginRight: '4px' }}>👤 Profile:</span>
+          <div role="group" aria-labelledby="user-type-group" style={{ display: 'flex', gap: '8px', flex: 1 }}>
+            {["default", "woman", "elderly", "tourist"].map(t => (
+              <button 
+                key={t} 
+                aria-pressed={userType === t}
+                onClick={() => setUserType(t)} 
+                disabled={disabled} 
+                style={pillStyle(userType === t)}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Context Banner */}
-        <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', background: 'var(--bg-card)', padding: '4px 8px', borderRadius: 'var(--radius-pill)', width: 'fit-content', margin: '0 auto' }}>
-          {getContextBanner()}
+        {/* Context Banner mapping user type to context-aware string */}
+        <div aria-live="polite" style={{ textAlign: 'center', fontSize: '12px', color: 'var(--brand-green)', background: 'rgba(34,197,94,0.08)', padding: '6px 10px', borderRadius: 'var(--radius-pill)', width: 'fit-content', margin: '4px auto 0 auto', fontWeight: 600 }}>
+          Optimized for: {userType.charAt(0).toUpperCase() + userType.slice(1)} → Context-aware safety routing
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+          <span id="time-period-group" style={{ fontSize: '13px', color: 'var(--text-secondary)', marginRight: '4px' }}>🕒 Time:</span>
+          <div role="group" aria-labelledby="time-period-group" style={{ display: 'flex', gap: '8px', flex: 1 }}>
+            {["day", "evening", "night"].map((period) => (
+              <button
+                key={period}
+                aria-pressed={timePeriod === period}
+                onClick={() => setTimePeriod(period)}
+                disabled={disabled}
+                style={pillStyle(timePeriod === period)}
+              >
+                {period.charAt(0).toUpperCase() + period.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
       </div>
-    </div>
+    </section>
   );
 };
 

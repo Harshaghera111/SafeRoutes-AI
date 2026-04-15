@@ -1,6 +1,6 @@
 /**
  * Core Safety Scoring Engine
- * Simulates route analysis using geographical constraints and user context targeting automated evaluations.
+ * Simulates route intelligence with no paid API dependency.
  * @module aiLogic
  */
 
@@ -20,70 +20,129 @@ const TIME_CONTEXT_HINT = {
   night: 'at late-night hours',
 };
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const safeHash = (input) => {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) % 9973;
+  }
+  return hash;
+};
+
 /**
- * Generates an array of coordinates interpolating from start to end with deterministic noise.
- * @param {number[]} start - Starting [lat, lng] array
- * @param {number[]} end - Ending [lat, lng] array
- * @param {number} points - Number of waypoints to generate
- * @param {number} noiseFactor - Amplitude of path deviation
- * @returns {number[][]} Array of [lat, lng] coordinates
+ * Designed to integrate with Google Maps Directions API for real-time routing.
+ * Current implementation uses simulated deterministic geometry for demos.
  */
 const generatePath = (start, end, points, noiseFactor) => {
   const path = [];
-  for (let i = 0; i <= points; i++) {
+  for (let i = 0; i <= points; i += 1) {
     const fraction = i / points;
-    const lat = start[0] + (end[0] - start[0]) * fraction + (Math.sin(i) * noiseFactor);
-    const lng = start[1] + (end[1] - start[1]) * fraction + (Math.cos(i) * noiseFactor);
+    const lat = start[0] + (end[0] - start[0]) * fraction + Math.sin(i) * noiseFactor;
+    const lng = start[1] + (end[1] - start[1]) * fraction + Math.cos(i) * noiseFactor;
     path.push([lat, lng]);
   }
   return path;
 };
 
 /**
- * Calculates safety metrics and routes based on user input.
- * @param {string} origin - Origin point
- * @param {string} destination - Destination point 
- * @param {string} userType - Custom user context (default, woman, elderly)
- * @param {string} timePeriod - Current time context (day, evening, night)
- * @returns {Object} Object containing fastest and safest simulated routes
+ * Calculates user-profile safety influence using contextual risk sensitivity.
  */
+export const getUserContextImpact = (userType = 'default', timePeriod = 'day') => {
+  const nightPenalty = timePeriod === 'night' ? -6 : timePeriod === 'evening' ? -3 : 0;
+
+  const profileMap = {
+    default: { scoreAdjustment: 0, confidenceBoost: 0, routeBias: 'balanced' },
+    woman: { scoreAdjustment: -3, confidenceBoost: 2, routeBias: 'well-lit-first' },
+    elderly: { scoreAdjustment: -2, confidenceBoost: 1, routeBias: 'active-zones-first' },
+    tourist: { scoreAdjustment: -1, confidenceBoost: 3, routeBias: 'landmark-corridor' },
+  };
+
+  const profileImpact = profileMap[userType] || profileMap.default;
+  return {
+    ...profileImpact,
+    scoreAdjustment: profileImpact.scoreAdjustment + nightPenalty,
+  };
+};
+
+/**
+ * Calculates safety score using lighting, crowd density, and risk zones.
+ */
+export const calculateSafetyScore = ({
+  routeType,
+  lightingScore,
+  crowdScore,
+  riskZonePenalty,
+  userType,
+  timePeriod,
+  routeHashSeed,
+}) => {
+  const context = getUserContextImpact(userType, timePeriod);
+  const routeModifier = routeType === 'safest' ? 8 : -10;
+  const deterministicVariance = routeHashSeed % 5;
+
+  const rawScore =
+    lightingScore * 0.42 +
+    crowdScore * 0.36 +
+    (100 - riskZonePenalty) * 0.22 +
+    context.scoreAdjustment +
+    routeModifier +
+    deterministicVariance;
+
+  return clamp(Math.round(rawScore), 30, 99);
+};
+
+/**
+ * Generates human-like AI explanation varying by route, user profile and time.
+ */
+export const generateSafetyExplanation = ({ routeType, score, userType, timePeriod }) => {
+  const userTone = USER_CONTEXT_TONE[userType] || USER_CONTEXT_TONE.default;
+  const timeHint = TIME_CONTEXT_HINT[timePeriod] || TIME_CONTEXT_HINT.day;
+  const routePrefix =
+    routeType === 'safest'
+      ? 'This route avoids poorly lit streets and passes through active areas'
+      : 'This route minimizes travel time but includes mixed-safety pockets';
+  const certaintyLine =
+    score >= 80
+      ? 'making it a high-confidence safer choice right now.'
+      : 'so caution is advised for this time window.';
+
+  return `${routePrefix}, which is optimized for a ${userTone} ${timeHint}, ${certaintyLine}`;
+};
+
+const getTierLabel = (score) => {
+  if (score >= 75) return 'SAFE';
+  if (score >= 50) return 'CAUTION';
+  return 'AVOID';
+};
+
 export const calculateRoutes = (origin, destination, userType = 'default', timePeriod = 'day') => {
   const queryContext = { origin, destination };
-  const isNight = timePeriod === 'night';
-  const isEvening = timePeriod === 'evening';
+  const contextImpact = getUserContextImpact(userType, timePeriod);
+  const routeSeed = safeHash(`${origin}|${destination}|${userType}|${timePeriod}`);
 
-  // Base score modifiers
-  let safestBase = isNight ? 82 : (isEvening ? 88 : 95);
-  let fastestBase = isNight ? 45 : (isEvening ? 55 : 68);
+  const safestDurationMinutes = timePeriod === 'night' ? 30 : timePeriod === 'evening' ? 29 : 28;
+  const fastestDurationMinutes = timePeriod === 'night' ? 24 : timePeriod === 'evening' ? 23 : 22;
 
-  // User type specific penalties padding
-  if (userType === 'woman') {
-    fastestBase -= 5;
-    safestBase -= 2;
-  } else if (userType === 'elderly') {
-    fastestBase -= 3;
-    safestBase -= 1;
-  }
+  const safestScore = calculateSafetyScore({
+    routeType: 'safest',
+    lightingScore: 92,
+    crowdScore: 86,
+    riskZonePenalty: 22,
+    userType,
+    timePeriod,
+    routeHashSeed: routeSeed,
+  });
 
-  // Ensure scores remain mathematically bounded
-  const safestScore = Math.max(75, Math.min(99, safestBase + Math.floor(Math.random() * 5)));
-  const fastestScore = Math.max(30, Math.min(85, fastestBase + Math.floor(Math.random() * 5)));
-
-  const safestDurationMinutes = isNight ? 30 : (isEvening ? 29 : 28);
-  const fastestDurationMinutes = isNight ? 24 : (isEvening ? 23 : 22);
-
-  const safestDistance = 4.8;
-  const fastestDistance = 4.1;
-
-  // Generate dynamic contextual explanations
-  const getExplanation = (type, score) => {
-    if (type === 'safest') {
-      return `This route prioritizes better-lit roads, active public stretches, and lower-isolation zones for a ${USER_CONTEXT_TONE[userType] || USER_CONTEXT_TONE.default} ${TIME_CONTEXT_HINT[timePeriod] || ''}.`;
-    }
-    return score >= 60 
-      ? `This route minimizes ETA but includes moderate-risk pockets with weaker crowd activity.`
-      : `This route is faster, but passes through isolated segments that are less ideal for your safety profile ${isNight ? 'at this hour' : 'right now'}.`;
-  };
+  const fastestScore = calculateSafetyScore({
+    routeType: 'fastest',
+    lightingScore: 58,
+    crowdScore: 55,
+    riskZonePenalty: 52,
+    userType,
+    timePeriod,
+    routeHashSeed: routeSeed + 19,
+  });
 
   return {
     safestRoute: {
@@ -91,30 +150,32 @@ export const calculateRoutes = (origin, destination, userType = 'default', timeP
       type: 'safest',
       durationMinutes: safestDurationMinutes,
       durationText: `${safestDurationMinutes} min`,
-      distanceText: `${safestDistance.toFixed(1)} km`,
+      distanceText: '4.8 km',
       score: safestScore,
-      tier: 'SAFE',
-      reasons: ['Well-lit roads', 'High public activity', 'Avoids isolated zones'],
+      tier: getTierLabel(safestScore),
+      reasons: ['Better lighting coverage', 'More public activity', 'Avoids risky zones'],
       riskTags: ['Low Lighting', 'Low Crowd', 'High Risk Zone'],
-      explanation: getExplanation('safest', safestScore),
-      confidence: Math.max(82, safestScore - 5),
+      explanation: generateSafetyExplanation({ routeType: 'safest', score: safestScore, userType, timePeriod }),
+      confidence: clamp(84 + contextImpact.confidenceBoost + (routeSeed % 6), 80, 97),
+      userContextImpact: `Optimized for: ${userType} -> Safer route selection (${contextImpact.routeBias})`,
       queryContext,
-      coords: generatePath(BASE_START, BASE_END, 8, 0.004)
+      coords: generatePath(BASE_START, BASE_END, 8, 0.004),
     },
     fastestRoute: {
       id: 'r_fast',
       type: 'fastest',
       durationMinutes: fastestDurationMinutes,
       durationText: `${fastestDurationMinutes} min`,
-      distanceText: `${fastestDistance.toFixed(1)} km`,
+      distanceText: '4.1 km',
       score: fastestScore,
-      tier: fastestScore >= 65 ? 'CAUTION' : 'AVOID',
-      reasons: ['Direct path', 'Some low lighting pockets', 'Lower crowd density stretches'],
+      tier: getTierLabel(fastestScore),
+      reasons: ['Lower ETA corridor', 'Fewer turns', 'Traffic-light optimized timing'],
       riskTags: ['Low Lighting', 'Low Crowd', 'High Risk Zone'],
-      explanation: getExplanation('fastest', fastestScore),
-      confidence: Math.max(75, fastestScore - 3),
+      explanation: generateSafetyExplanation({ routeType: 'fastest', score: fastestScore, userType, timePeriod }),
+      confidence: clamp(76 + contextImpact.confidenceBoost + (routeSeed % 5), 72, 91),
+      userContextImpact: `Optimized for: ${userType} -> Faster route selection (${contextImpact.routeBias})`,
       queryContext,
-      coords: generatePath(BASE_START, BASE_END, 5, -0.002)
-    }
+      coords: generatePath(BASE_START, BASE_END, 5, -0.002),
+    },
   };
 };

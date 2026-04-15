@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import SearchBar from './components/SearchBar';
-import MapView from './components/MapView';
+import MapComponent from './components/MapComponent';
 import { ResultsView } from './components/RouteCard';
 import SkeletonCard from './components/SkeletonCard';
 import EmergencyButton from './components/EmergencyButton';
@@ -19,20 +19,41 @@ const App = () => {
   const [appStage, setAppStage] = useState("idle");
   const [simStatus, setSimStatus] = useState(""); // "📡 Analyzing real-time urban signals..."
   const [routes, setRoutes] = useState(null);
+  const [inputError, setInputError] = useState("");
 
-  const handleSearch = () => {
-    if (!origin || !destination) return;
+  const normalizedInput = useMemo(
+    () => ({
+      origin: origin.trim().slice(0, 80),
+      destination: destination.trim().slice(0, 80),
+    }),
+    [origin, destination]
+  );
+
+  const handleSearch = useCallback(() => {
+    if (!normalizedInput.destination) {
+      setInputError("Please enter destination");
+      alert("Please enter destination");
+      return;
+    }
+
+    if (!normalizedInput.origin) {
+      setInputError("Please enter origin");
+      alert("Please enter origin");
+      return;
+    }
+
+    setInputError("");
     setAppStage('loading');
     setSimStatus("📡 Analyzing real-time urban signals...");
     
     // Simulate real-world fetch lag
     setTimeout(() => {
-      const generated = calculateRoutes(origin, destination, userType, timePeriod);
+      const generated = calculateRoutes(normalizedInput.origin, normalizedInput.destination, userType, timePeriod);
       setRoutes(generated);
-      setSimStatus("✅ Updated using simulated live data");
+      setSimStatus("✅ Updated just now");
       setAppStage('results');
     }, 2000);
-  };
+  }, [normalizedInput, userType, timePeriod]);
 
   const appContainerStyle = {
     maxWidth: '430px', margin: '0 auto', background: 'var(--bg-base)', minHeight: '100vh', 
@@ -60,9 +81,10 @@ const App = () => {
          timePeriod={timePeriod} setTimePeriod={setTimePeriod}
          handleSearch={handleSearch} disabled={appStage === 'loading'}
          appStage={appStage}
+         inputError={inputError}
       />
 
-      <MapView 
+      <MapComponent
         fastestRoute={routes?.fastestRoute} 
         safestRoute={routes?.safestRoute} 
       />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import SafetyScore from './SafetyScore';
 import RiskTagRow from './RiskTagRow';
 import AIExplanation from './AIExplanation';
@@ -29,6 +29,8 @@ const TradeoffCallout = ({ fastestRoute, safestRoute }) => {
 };
 
 const RouteCard = ({ route }) => {
+  if (!route) return null;
+
   const isSafest = route.type === 'safest';
   
   const style = {
@@ -67,6 +69,10 @@ const RouteCard = ({ route }) => {
 
       <AIExplanation explanation={route.explanation} confidence={route.confidence} />
       
+      <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+        <strong>User Context Impact:</strong> {route.userContextImpact}
+      </p>
+
       {isSafest && <WhyThisRoute reasons={route.reasons} color="var(--safe)" />}
     </article>
   );

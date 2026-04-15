@@ -31,7 +31,7 @@ const SearchBar = ({
           <span aria-hidden="true" style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>📍</span>
           <input 
             type="text" 
-            aria-label="Origin Location"
+            aria-label="Enter origin"
             value={origin} 
             onChange={(e) => setOrigin(e.target.value)}
             onKeyDown={(event) => {
@@ -49,7 +49,7 @@ const SearchBar = ({
             <span aria-hidden="true" style={{ position: 'absolute', left: '12px', top: '10px', fontSize: '16px' }}>🎯</span>
             <input 
               type="text" 
-              aria-label="Destination Location"
+              aria-label="Enter destination"
               value={destination} 
               onChange={(e) => setDestination(e.target.value)}
               onKeyDown={(event) => {

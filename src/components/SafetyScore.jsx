@@ -18,6 +18,11 @@ const SafetyScore = ({ score }) => {
     desc = 'Moderate Risk';
   }
 
+  if (typeof score !== "number") {
+    console.error("Safety score calculation failed");
+    return null;
+  }
+
   return (
     <div aria-label={`Safety Score: ${score} out of 100, marked as ${desc}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -30,6 +35,9 @@ const SafetyScore = ({ score }) => {
         <span style={{ fontSize: '28px', fontWeight: 800, color: color, fontFamily: 'Syne, sans-serif' }}>{score}</span>
         <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/100</span>
       </div>
+      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 600 }}>
+        Safety Score: {score}/100 ({desc})
+      </span>
     </div>
   );
 };

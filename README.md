@@ -163,7 +163,7 @@ npm run preview
 
 ### Deployment
 
-- Live Demo: `https://your-deployment-link-here`
+- Live Demo: [https://safe-routes-ai.vercel.app/](https://safe-routes-ai.vercel.app/)
 
 ---
 

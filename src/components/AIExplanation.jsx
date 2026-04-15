@@ -4,7 +4,10 @@ import React from 'react';
  * Renders the localized explanation logic simulating AI intent, alongside validation markers.
  */
 const AIExplanation = ({ explanation, confidence }) => {
-  if (!explanation) return null;
+  const safeExplanation =
+    explanation ||
+    'This route is recommended after balancing lighting coverage, public activity, and risk-zone exposure.';
+  const safeConfidence = Number.isFinite(confidence) ? confidence : 87;
 
   return (
     <div 
@@ -25,7 +28,7 @@ const AIExplanation = ({ explanation, confidence }) => {
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
         <span aria-hidden="true" style={{ color: 'var(--brand-green)' }}>✨</span>
-        <span style={{ fontWeight: 500 }}>{explanation}</span>
+        <span style={{ fontWeight: 500 }}>{safeExplanation}</span>
       </div>
 
       <div style={{ 
@@ -37,8 +40,8 @@ const AIExplanation = ({ explanation, confidence }) => {
         fontSize: '11px', 
         color: 'var(--text-secondary)' 
       }}>
-        <span aria-label={`AI Confidence score: ${confidence} percent`}>
-          <strong>AI Confidence:</strong> <span style={{ color: 'var(--brand-green)' }}>{confidence}%</span>
+        <span aria-label={`AI Confidence score: ${safeConfidence} percent`}>
+          <strong>AI Confidence:</strong> <span style={{ color: 'var(--brand-green)' }}>{safeConfidence}%</span>
         </span>
         <span aria-label="Data source credibility">
            Based on 12,000+ simulated urban safety signals

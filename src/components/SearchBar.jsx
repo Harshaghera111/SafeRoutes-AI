@@ -5,7 +5,7 @@ const SearchBar = ({
   destination, setDestination, 
   userType, setUserType, 
   timePeriod, setTimePeriod, 
-  handleSearch, disabled, appStage, inputError
+  handleSearch, disabled, inputError
 }) => {
 
   const pillStyle = (active) => ({

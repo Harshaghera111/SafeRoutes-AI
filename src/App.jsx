@@ -80,7 +80,6 @@ const App = () => {
          userType={userType} setUserType={setUserType}
          timePeriod={timePeriod} setTimePeriod={setTimePeriod}
          handleSearch={handleSearch} disabled={appStage === 'loading'}
-         appStage={appStage}
          inputError={inputError}
       />
 
